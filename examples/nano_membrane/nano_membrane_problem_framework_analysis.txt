@@ -1,0 +1,297 @@
+﻿ShinkaEvolve Nano Membrane 工程问题还原与框架适配分析（完整设计说明）
+
+文档目的
+- 基于 examples/nano_membrane 的代码与现有运行产物，尽可能还原该示例正在解决的真实工程问题、目标与约束。
+- 结合 ShinkaEvolve 框架机制，分析其对该问题的支持路径、适配点、能力边界与可扩展方向。
+- 补充可直接用于后续迭代的设计细节、功能增强清单与实施优先级。
+
+一、工程问题还原（Problem Reconstruction）
+1) 问题本质
+- 这是一个“二维膜面离散孔布局优化”问题：在 10x10 的膜区域内放置若干圆孔，孔径只能从离散集合中选择。
+- 目标不是单一最优，而是跨不同偏好（渗透性优先 vs 截留率优先）获得稳定且高质量的折中解。
+
+2) 输入与输出契约
+- 输入（求解器侧）:
+  - 随机种子 seed
+  - 权重参数 alpha（在多次评估时由评估器调度）
+- 输出（run_experiment 契约）:
+  - {"circles": [(x,y,d), ...], "alpha": alpha}
+- 该契约是 ShinkaEvolve 评估封装可复用的核心接口，意味着框架只要求“可执行程序 + 统一返回结构”，不绑定具体算法范式。
+
+3) 决策变量
+- 每个孔由三元组 (x, y, d) 表示。
+- d 来自离散孔径集合 {1.0, 1.5, 2.0, 2.5, 3.0, 3.5}。
+- N（孔数量）不是固定值，由算法在可行条件下自适应决定。
+
+二、目标与约束形式化（Objective & Constraints）
+1) 几何硬约束（必须满足）
+- 边界约束：孔必须完整位于膜内。
+  - r=d/2, 需满足 r<=x<=10-r 且 r<=y<=10-r
+- 间距约束：任意两孔中心距必须满足
+  - dist(i,j) >= (d_i + d_j)/2 + 0.5
+- 离散孔径约束：d 必须属于允许集合。
+- 去重约束：评估器按 (round(x,2), round(y,2)) 判断重复坐标并视为非法。
+
+2) 物理/性能指标
+- 每种孔径对应经验表 HOLE_TYPES[d] = (P_type, R_type)。
+- 总体渗透性（P_raw）采用面积加权后再按膜面积归一：
+  - P_raw = C * sum(area_i * P_type_i) / (DOMAIN_SIZE^2), C=1.64
+- 总体截留率（R_raw）采用孔面积加权平均并截断到 [0,100]：
+  - R_raw = clip(sum(area_i * R_type_i) / sum(area_i), 0, 100)
+
+3) 单次运行打分（标量化）
+- 为兼顾双目标，先归一化：
+  - Pn: 分段函数，P<=P_KNEE(600) 时快速增益，之后至 P_CAP(1100) 进入递减收益。
+  - Rn: 以 R_FLOOR(96) 为工程下限，映射到 [0,1]。
+- 单次分数：
+  - score = alpha * Pn + (1-alpha) * Rn
+
+4) 多次运行聚合（鲁棒性 + 前沿质量）
+- 每个程序默认执行 5 次，alpha 按调度 [0.2, 0.35, 0.5, 0.65, 0.8]。
+- 对可行结果集合：
+  - 计算 non_dominated_set（非支配前沿）
+  - 计算归一化 Pn-Rn 平面的 hypervolume (hv)
+- 最终总分：
+  - combined_score = hv * feasible_rate
+- 这意味着程序必须同时做到：
+  - 高前沿覆盖质量（hv 高）
+  - 高可行稳定性（feasible_rate 高）
+
+三、评估系统设计细节（evaluate.py 还原）
+1) 评估流程
+- 对每次运行输出先做 validate_solution。
+- 合法则 compute_metrics + compute_score_components。
+- 汇总 run_summary.json（逐run细节 + 可行率 + 失败原因统计）。
+- 生成 metrics.json / correct.json 供框架读取。
+
+2) 产物设计
+- 必产物：
+  - metrics.json
+  - correct.json
+  - run_summary.json
+- 可选产物（save_artifacts 控制）：
+  - membrane.svg（最佳布局可视化）
+  - pareto_archive.pkl（历史前沿）
+  - figures/pareto.png
+
+3) 评估封装机制（run_shinka_eval）
+- 支持 sequential/parallel 运行（run_workers）。
+- 支持用户自定义：
+  - get_experiment_kwargs（每次运行参数生成）
+  - aggregate_metrics_fn（自定义聚合）
+- 自动附加 execution_time_mean/std。
+- 出错时有默认兜底指标并写回结果文件，保证框架侧可继续处理。
+
+四、初始求解器设计还原（initial.py）
+1) 算法风格
+- 初始版本是启发式+元启发式混合：
+  - 随机/结构化初始化
+  - 几何 relax（排斥+边界回推）
+  - 模拟退火（多种变异算子）
+  - 局部精修
+  - 0.01 网格离散 + 修复
+
+2) 目标函数内部实现
+- 采用“约束惩罚 + 工程打分”的方式：
+  - objective = violation - score
+- 先逼近可行，再在可行域内提升 P/R 折中表现。
+
+3) 变异算子覆盖
+- move / add / remove / diameter change / swap / relocate large circle。
+- 提供 ablation_mode 入口（如 no_relax/no_swap/no_discretize），方便算法剖析。
+
+五、ShinkaEvolve 框架如何支持该问题（能力映射）
+1) 异步进化主链（AsyncEvolutionRunner）
+- 关键环节：
+  - 采样父代与灵感上下文 -> 生成提案 -> 应用补丁 -> 嵌入与新颖性评估 -> 提交评估任务 -> 回收结果入库 -> 更新最优快照
+- 这是“算法生成”和“程序评估”解耦的核心：求解器本身只需遵守 I/O 契约。
+
+2) 代码编辑边界控制（对工程问题非常关键）
+- EVOLVE-BLOCK 机制：
+  - diff/full patch 只能在 EVOLVE-BLOCK-START/END 间编辑。
+  - 块外评估接口和运行壳层保持稳定，减少“进化把程序改坏到无法评估”的风险。
+- 对 nano_membrane 的价值：
+  - 稳定保留 run_experiment 接口与依赖导入。
+  - 把探索集中在求解策略本身。
+
+3) Prompt 与 Patch 机制
+- patch_types 支持 full/diff（本例配置 0.8/0.2）。
+- 严格标签输出（<NAME>/<DESCRIPTION>/<CODE> 或 DIFF 格式）提高可解析性。
+- fix 模式：当采样到 incorrect 程序时，自动切到“修复提示词”路径，提升恢复能力。
+
+4) 任务调度与执行
+- JobScheduler 构造标准命令：
+  - python evaluate.py --program_path <candidate_main.py> --results_dir <gen_dir>/results
+- 本地执行器 local.py：
+  - 实时抓取 stdout/stderr 到 job_log.out/job_log.err
+  - 支持超时与进程状态监控
+
+5) 数据库进化记忆（ProgramDatabase）
+- 保存内容完整：代码、得分、public/private metrics、元数据、父子关系、灵感来源、embedding、island_idx、是否入档等。
+- 对该问题的实际意义：
+  - 可以追踪“算法思想演化路径”，不只是看单点最优分数。
+
+6) 父代与灵感采样策略
+- 父代：power_law/weighted/beam_search/best_of_n/sequential。
+- 灵感：archive inspiration + top-k inspiration，可按策略排序（如升序让最好样例靠后增强提示效果）。
+- 对 nano_membrane 的收益：
+  - 同时保留“ exploitation（利用）”与“exploration（探索）”两类信号。
+
+7) 多岛模型与归档
+- 可配置 island 分治、迁移、分离约束、动态增岛。
+- archive 更新支持 fitness 或 crowding（embedding 近邻替换）策略。
+- 本例虽设 num_islands=1，但框架已具备更大规模搜索的结构能力。
+
+8) 成本/模型治理
+- 追踪 api_cost / embed_cost / novelty_cost / meta_cost。
+- 支持模型动态选择（本例 ucb1），并可持久化 bandit_state.pkl 续跑。
+- 预算停止条件：max_api_costs（本例 4.0）。
+
+9) 鲁棒性与恢复
+- DB 写失败重试队列。
+- stuck system 检测与恢复尝试。
+- 断点续跑：programs.sqlite + bandit_state。
+
+六、配置层适配解读（shinka_small.yaml）
+1) 保守并发配置
+- max_evaluation_jobs=1, max_proposal_jobs=1, max_db_workers=2。
+- 优点：可复现性较好、排查简单。
+- 代价：搜索吞吐受限。
+
+2) 进化参数
+- num_generations=90
+- max_api_costs=4.0
+- llm_models=["gpt-5-mini"]
+- llm_dynamic_selection=ucb1（当前单模型时动态选择价值有限，但机制可扩展）
+
+3) patch 策略
+- full 占比 80%，diff 占比 20%。
+- 对这类“可能需要重构算法逻辑”的问题，full 高占比通常更容易出现范式跃迁。
+
+七、从运行产物看出的真实演化行为
+1) 基线与最优对比
+- Gen0: combined_score 约 0.514036
+- Best: combined_score 约 0.844544（timestamp_utc: 2026-04-04T11:34:30Z）
+- 可行率均为 1.0，但 hv 明显提升，说明前沿质量显著改进。
+
+2) 最优解特征（best/public）
+- best_P=629.59, best_R=99.6, best_N=18, best_porosity=0.445713
+- 表现为“保持高 R 的同时将 P 拉升到 knee 附近并超越”，契合评分函数的分段收益结构。
+
+3) 算法范式迁移证据
+- 从 best/edit.diff 可见，进化后解法出现“max-gap greedy packing + multi-scale grid + 局部细化”风格。
+- 这说明 ShinkaEvolve 在该任务中并非仅做参数微调，而是能够引导算法结构重写。
+
+八、当前方案的目标、限制与隐含假设
+1) 目标层
+- 追求跨权重鲁棒 Pareto 质量，而非单 alpha 最优。
+
+2) 约束层
+- 几何硬约束严格，候选一旦违规会拖累 feasible_rate，直接压低总分。
+
+3) 评估模型层
+- HOLE_TYPES 是经验映射，不是高保真物理仿真。
+- 当前优化结果更接近“代理模型最优”，需要下游仿真/实验复核。
+
+4) 搜索层
+- 本配置并发低、预算有限，适合教学/验证，不一定是全局最优生产配置。
+
+九、功能补充与设计增强建议（可落地）
+A. 评估体系增强
+1) 增加参考点可配置的超体积
+- 目前 hv 在归一化平面固定框架内计算。
+- 建议在 config 暴露 reference_point，便于不同任务难度横向对比。
+
+2) 增加不确定性惩罚
+- 当前 robust_score=hv*feasible_rate，未显式惩罚 run 间方差。
+- 建议引入 variance penalty 或 CVaR 风险项，提升工程稳健性。
+
+3) alpha 调度扩展
+- 现有 5 点可覆盖基本权衡。
+- 建议支持自定义密度（如 9~13 点）与随机扰动 alpha，减少对固定点过拟合。
+
+4) 增加约束违规诊断图
+- 把 failure_counter 做成趋势图/热力图，帮助定位“哪类约束最常被破坏”。
+
+B. 求解器侧增强
+1) 多起点集成
+- 每个 run 内部做多次短程搜索（multi-start），输出最佳可行解。
+- 对复杂约束组合通常比单链 SA 更稳。
+
+2) 可学习的算子调度
+- 将变异算子采样概率与近期收益绑定（bandit/概率匹配），减少无效扰动。
+
+3) 后处理修复器标准化
+- 把 discretize+repair 抽为通用可复用模块，便于迁移到其他几何布局任务。
+
+4) 结构先验注入
+- 针对该问题可尝试“环形/分区/梯度孔径”模板初始化，再由搜索微调。
+
+C. 框架配置增强
+1) 启用多岛探索（>=3 islands）
+- 对“多峰优化 + 程序级搜索”任务通常更容易形成多样解族。
+
+2) 提升并发并配合预算守卫
+- 可尝试 evaluation/proposal 并发逐级放大，同时监控 committed cost。
+
+3) 精细化 patch 策略
+- 早期提高 full 比例做结构探索，中后期提高 diff 比例做局部精修。
+
+4) 归档策略切换实验
+- 对该任务可比较 fitness vs crowding 的前沿多样性差异。
+
+D. 工程化与复现
+1) 固定版本与配置快照
+- 每次实验记录 git commit + yaml + prompt 版本 +模型参数。
+
+2) 自动生成实验报告
+- 从 metrics/run_summary/programs.sqlite 自动导出“最佳解 + 前沿 + 失败统计 + 成本曲线”。
+
+3) 二阶段验证流水线
+- Stage1: 当前代理评估快速筛选
+- Stage2: 高保真仿真/实验复评 top-k
+
+十、实施优先级建议
+P0（马上做）
+1) 增加评估方差惩罚或风险指标
+2) 提供 alpha 调度可配置化
+3) 产出自动实验报告（减少人工解读成本）
+
+P1（下一轮）
+1) 开启多岛 + 中等并发
+2) 进行 archive 策略对照实验
+3) 增加多起点求解封装
+
+P2（中期）
+1) 接入高保真仿真复评
+2) 构建代理模型校正闭环（active learning）
+
+十一、结论
+- nano_membrane 示例本质是“受硬约束的离散几何布局多目标优化”，并通过 alpha 调度 + hv 聚合，将问题从“单点最优”升级为“前沿质量 + 稳定性”优化。
+- ShinkaEvolve 在该任务上的关键优势是：
+  - 程序级进化（可发生算法范式迁移）
+  - 评估-进化解耦（统一契约）
+  - 成本、记忆、归档、恢复机制完善
+- 从本地运行结果看，框架已经把该任务从 0.514 级别推进到 0.844 级别，并保持 100% 可行率，说明“问题建模 + 框架适配 + 演化搜索”三者是有效闭环。
+- 下一步若要走向工程生产，建议重点补齐：风险型评价、并发扩展、多岛多样性、以及高保真验证闭环。
+
+附：本分析主要依据
+- examples/nano_membrane/README.md
+- examples/nano_membrane/initial.py
+- examples/nano_membrane/evaluate.py
+- examples/nano_membrane/run_evo_async.py
+- examples/nano_membrane/shinka_small.yaml
+- shinka/core/async_runner.py
+- shinka/core/wrap_eval.py
+- shinka/core/sampler.py
+- shinka/edit/apply_diff.py
+- shinka/edit/apply_full.py
+- shinka/launch/scheduler.py
+- shinka/launch/local.py
+- shinka/database/dbase.py
+- shinka/database/parents.py
+- shinka/database/inspirations.py
+- examples/nano_membrane/results/membrane_run/gen_0/results/metrics.json
+- examples/nano_membrane/results/membrane_run/best/results/metrics.json
+- examples/nano_membrane/results/membrane_run/best/results/run_summary.json
+- examples/nano_membrane/results/membrane_run/best/edit.diff
