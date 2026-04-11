@@ -1,76 +1,45 @@
-﻿# ShinkaEvolve Nano-Membrane Fork
+# VACNT-Membrane-Optimizer: AI-Driven Heterogeneous Pore Arrangement
 
-这个 fork 是面向 `examples/nano_membrane` 的精简版本，目标是：
+**基于大语言模型（LLM）的垂直碳纳米管（VACNT）膜异质孔径排布优化项目**
 
-- 可在新设备快速安装
-- 可复现 nano_membrane 评估与进化流程
-- 删除与该任务无关的示例/文档/测试，减少仓库体积与认知负担
+本仓库旨在利用 [SakanaAI/ShinkaEvolve](https://github.com/SakanaAI/ShinkaEvolve) 的进化算法框架，解决海水淡化 VACNT 膜设计中的核心难题——**非等圆圆形打包问题（Non-Equal Circle Packing）**。
 
-## 保留内容
+## 🎯 研究愿景：从“均质严苛”到“异质协同”
 
-- `shinka/`：运行框架核心代码
-- `examples/nano_membrane/`：任务代码与配置
-- `pyproject.toml`：依赖与打包配置
-- `LICENSE`：许可证
+传统膜分离技术受限于“渗透性-选择性”权衡（Trade-off），要求膜孔高度均一且尺寸严苛（通常 <1nm）。本项目使用了一种创新的**动态振荡范式**：
+1.  **引入振荡**：通过微小的机械振荡（~2Å），破坏水合层，激活大孔径（3.5nm）的过滤能力。
+2.  **异质协同**：不再追求孔径均一，而是设计 **1nm（高选择性）** 与 **3.5nm（高通量）** 的异质孔协同分布。
+3.  **AI 破局**：利用大语言模型（LLM）驱动的进化算法，寻找在保持最小安全距离约束下，最大化膜利用效率的最优排布方案。
 
-## 环境要求
+---
 
-- Python `>=3.10`（建议 `3.11`）
-- 建议使用 `uv`（也可用 `pip`）
+## 📂 仓库结构
 
-## 新设备快速开始
+本仓库已对上游源码进行精简，专注于 `nano_membrane` 场景：
 
-1. 克隆你的 fork
+*   `shinka/` - ShinkaEvolve 运行框架核心代码
+*   `examples/nano_membrane/` - **核心工作区**：包含 VACNT 膜优化的任务定义、配置与评估脚本
+*   `pyproject.toml` - 依赖配置
+*   `LICENSE` - Apache License 2.0
+
+---
+
+## ⚙️ 快速开始
+
+### 1. 环境准备
+建议使用 Python 3.11 环境。
 
 ```bash
-git clone <your-fork-url>
-cd ShinkaEvolve
-```
+# 1. 克隆仓库
+git clone https://github.com/your-username/VACNT-Membrane-Optimizer.git
+cd VACNT-Membrane-Optimizer
 
-2. 创建虚拟环境并安装
-
-```bash
+# 2. 推荐使用 uv (也可用 pip)
 uv venv --python 3.11
-# Windows
-.venv\Scripts\activate
-# macOS/Linux
-# source .venv/bin/activate
+# Windows: .venv\Scripts\activate
+# Linux/Mac: source .venv/bin/activate
 
+# 3. 安装依赖
 uv pip install -e .
-```
 
-3. 进入 nano_membrane 示例
 
-```bash
-cd examples/nano_membrane
-```
-
-4. 先做单点评估（无需 API Key）
-
-```bash
-python evaluate.py --program_path initial.py --results_dir results/manual_eval
-```
-
-5. 跑异步进化（需要模型 API 配置）
-
-```bash
-python run_evo_async.py --config_path shinka_small.yaml
-```
-
-## API Key 说明
-
-- 仅执行 `evaluate.py` 时，不需要 LLM API Key。
-- 执行 `run_evo_async.py` 时，需要根据 `shinka_small.yaml` 中的模型配置提供对应 API Key。
-
-当前默认模型是 `gpt-5-mini`，请在环境变量中设置 OpenAI Key（例如 `OPENAI_API_KEY`）。
-
-## 结果目录说明
-
-- 运行产物写入 `examples/nano_membrane/results/`
-- 该目录通常体积较大，不建议提交到 Git
-
-本仓库已通过 `.gitignore` 忽略 `results/` 与 `__pycache__/`。
-
-## 上游来源
-
-本仓库基于 [SakanaAI/ShinkaEvolve](https://github.com/SakanaAI/ShinkaEvolve) 精简修改，遵循 Apache License 2.0。
