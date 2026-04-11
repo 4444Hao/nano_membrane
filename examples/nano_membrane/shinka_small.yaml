@@ -1,0 +1,55 @@
+﻿max_evaluation_jobs: 1
+max_proposal_jobs: 1
+max_db_workers: 2
+
+db_config:
+  num_islands: 1
+  archive_size: 40
+  elite_selection_ratio: 0.3
+  num_archive_inspirations: 4
+  num_top_k_inspirations: 2
+
+evo_config:
+  task_sys_msg: |
+    You are optimizing a nano-membrane circle layout solver.
+    Output format is strict and must be parseable:
+    - Return exactly one <NAME>...</NAME>, one <DESCRIPTION>...</DESCRIPTION>, and one <CODE>...</CODE>.
+    - Keep <DESCRIPTION> very short (max 3 lines).
+    - In <CODE>, return a complete runnable program that preserves inputs/outputs.
+    - Keep EVOLVE-BLOCK markers in the code and do not modify code outside them.
+    - Do not include extra prose outside these tags.
+    - In <CODE>, output plain Python only, no markdown fences.
+    - If format is invalid, your candidate will be discarded.
+
+  patch_types: [full, diff]
+  patch_type_probs: [0.8, 0.2]
+
+  num_generations: 90
+  max_api_costs: 4.0
+
+  max_patch_resamples: 3
+  max_patch_attempts: 3
+  max_novelty_attempts: 2
+
+  job_type: local
+  language: python
+
+  llm_models:
+    - "gpt-5-mini"
+
+  llm_kwargs:
+    temperatures: [0]
+    reasoning_efforts: [medium]
+    max_tokens: [8192]
+
+  llm_dynamic_selection: ucb1
+  llm_dynamic_selection_kwargs:
+    exploration_coef: 0.8
+    cost_aware_coef: 0.8
+
+  embedding_model: text-embedding-3-small
+
+  init_program_path: initial.py
+  results_dir: results/membrane_run
+
+job_time: "00:15:00"
