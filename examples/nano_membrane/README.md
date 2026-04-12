@@ -111,18 +111,6 @@ python evaluate.py --program_path results/membrane_run/best/main.py --results_di
 - `pareto_archive.pkl`
 - `figures/pareto.png`
 
-## 当前本地基线快照
-
-来自现有本地运行结果：
-
-- 来源：`results/membrane_run/best/results/metrics.json`
-- 时间戳：`2026-04-04T11:34:30Z`
-- `combined_score = 0.844544`
-- `feasible_rate = 1.0`
-- `hypervolume_norm = 0.844544`
-- `best_P = 629.59`，`best_R = 99.6`
-
-该值可作为你 fork 的复现参考，不是理论上限。
 
 ## 推荐使用流程
 
