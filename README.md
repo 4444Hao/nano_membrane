@@ -200,8 +200,7 @@ gen_/
 -   **用途**：报告插图、方案展示。
 
     下面为测试75代后的best可视化
- -   <img src="assets/evolve75.svg" alt="进化75代的best排布" width="200">
- -   <img src="assets\pareto.png" alt="best对应的对应5个alpha 评估" width="200">
+    <img src="assets/evolve75.svg" alt="进化75代的best排布" width="200">   <img src="assets\pareto.png" alt="best对应的对应5个alpha 评估" width="200">
 
 #### `rollback_backup_*`
 -   **说明**：回滚安全备份目录（含 `programs.sqlite` 备份）。
