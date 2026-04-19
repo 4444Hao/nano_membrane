@@ -35,7 +35,6 @@
 ```bash
 # 1. 克隆仓库
 git clone https://github.com/4444Hao/nano_membrane.git
-cd nano_membrane
 
 # 2. 推荐使用 uv (也可用 pip)
 uv venv --python 3.11
@@ -50,7 +49,6 @@ uv pip install -e .
 无需 API Key，用于验证初始设计方案的适应度。
 
 ```bash
-cd examples/nano_membrane
 python evaluate.py --program_path initial.py --results_dir results/manual_eval
 ```
 
