@@ -115,11 +115,9 @@ python -m shinka.webui.visualization --port 8888 --open
 以下为典型监控结果可视化：
 
 **进化树结构**  
-展示算法探索路径和解空间演化：
 <img src="assets/gentree.jpeg" alt="进化75代的树状结构" width="400">
 
-**适应度分析**  
-并排对比两种关键指标：
+**Score分析**  
 <div style="display: flex; gap: 10px; margin-top: 10px">
   <img src="assets/scorerank.png" alt="进化75代的适应度排名" width="200">
   <img src="assets/Evolvescore.png" alt="进化75代的适应度变化趋势" width="200">
