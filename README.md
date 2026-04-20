@@ -4,9 +4,8 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 
-**基于大语言模型（LLM）的垂直碳纳米管（VACNT）膜异质孔径排布优化项目**
+**<img src="assets\image_177667519376202.png" alt="项目logo" width="18"> 基于大语言模型（LLM）的垂直碳纳米管（VACNT）膜异质孔径排布优化项目**
 
-![项目Logo](https://example.com/shinkaevolve-logo.png)
 
 
 本仓库旨在利用 **ShinkaEvolve** 的进化算法框架，解决海水淡化 VACNT 膜设计中的核心难题——**非等圆圆形打包问题（Non-Equal Circle Packing），实现通量与截留率的多目标优化**。
@@ -93,6 +92,13 @@ python examples\nano_membrane\evaluate.py `
   --run_workers 1 `
   --save_artifacts best_only
 ```
+#### 下面为测试的best_viz/文件内容（75代）： 
+
+**膜孔布局图**    
+<img src="assets/evolve75.svg" alt="进化75代的best排布" width="200">
+
+**Pareto 前沿图**   
+<img src="assets\pareto.png" alt="best对应的对应5个alpha 评估" width="200">
 
 ### 2. 官方 WebUI 实时监控
 在运行进化任务（`run_evo_async.py`）的同时，你可以启动官方的 WebUI 工具，在浏览器中实时查看进化进度、种群分布和最优解的图形化展示。
@@ -105,7 +111,25 @@ python examples\nano_membrane\evaluate.py `
 ```bash
 python -m shinka.webui.visualization --port 8888 --open
 ```
+#### 进化过程监控示例（75代）
+以下为典型监控结果可视化：
 
+**进化树结构**  
+展示算法探索路径和解空间演化：
+<img src="assets/gentree.jpeg" alt="进化75代的树状结构" width="400">
+
+**适应度分析**  
+并排对比两种关键指标：
+<div style="display: flex; gap: 10px; margin-top: 10px">
+  <img src="assets/scorerank.png" alt="进化75代的适应度排名" width="200">
+  <img src="assets/Evolvescore.png" alt="进化75代的适应度变化趋势" width="200">
+</div>
+
+> **左图说明**：`scorerank.png` - 进化中Score排名  
+> **右图说明**：`Evolvescore.png` - 进化过程Score的变化
+
+> **建议**：在运行进化任务时同时启动监控，以便及时调整参数或处理异常。
+```
 ## 📂 Nano Membrane 结果目录说明（交接文档）
 
 ### 1. 目录快照示例
@@ -195,10 +219,7 @@ gen_/
 #### `best_viz/`
 -   **说明**：面向可视化导出的独立结果目录。
 -   **关键文件**：`membrane.svg`（膜孔布局图）、`pareto.png`（Pareto 前沿图）。
--   **用途**：报告插图、方案展示。
-
-    下面为测试75代后的best可视化
-    <img src="assets/evolve75.svg" alt="进化75代的best排布" width="200">   <img src="assets\pareto.png" alt="best对应的对应5个alpha 评估" width="200">
+-   **用途**：报告插图、方案展示。    
 
 #### `rollback_backup_*`
 -   **说明**：回滚安全备份目录（含 `programs.sqlite` 备份）。
