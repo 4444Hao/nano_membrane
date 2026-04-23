@@ -142,6 +142,142 @@ def validate_solution(circles: List[Tuple[float, float, float]]) -> Tuple[bool, 
     return True, ""
 
 
+def diagnose_violations(circles: List[Tuple[float, float, float]]) -> Dict[str, Any]:
+    """
+    详细诊断约束违反情况，返回可供 LLM 学习的结构化信息。
+    """
+    if not circles:
+        return {"total_circles": 0, "violations": ["No circles provided"]}
+
+    violations = []
+    invalid_diameters = []
+    boundary_violations = []
+    spacing_violations = []
+    duplicate_coords = []
+    seen = {}
+
+    for i, (x, y, d) in enumerate(circles):
+        if d not in VALID_DIAMETERS:
+            invalid_diameters.append({"index": i, "diameter": d, "valid_options": VALID_DIAMETERS})
+            continue
+
+        key = (round(x, 2), round(y, 2))
+        if key in seen:
+            duplicate_coords.append({"index": i, "duplicate_of": seen[key], "coord": key})
+        else:
+            seen[key] = i
+
+        r = d / 2.0
+        bx_lo, bx_hi = r, DOMAIN_SIZE - r
+        by_lo, by_hi = r, DOMAIN_SIZE - r
+        if not (bx_lo - ATOL <= x <= bx_hi + ATOL) or not (by_lo - ATOL <= y <= by_hi + ATOL):
+            boundary_violations.append({
+                "index": i, "x": round(x, 4), "y": round(y, 4), "d": d,
+                "valid_x_range": [round(bx_lo, 4), round(bx_hi, 4)],
+                "valid_y_range": [round(by_lo, 4), round(by_hi, 4)],
+            })
+
+    for i in range(len(circles)):
+        xi, yi, di = circles[i]
+        if di not in VALID_DIAMETERS:
+            continue
+        for j in range(i + 1, len(circles)):
+            xj, yj, dj = circles[j]
+            if dj not in VALID_DIAMETERS:
+                continue
+            dist = sqrt((xi - xj) ** 2 + (yi - yj) ** 2)
+            min_dist = (di + dj) / 2.0 + MIN_SPACING
+            if dist < min_dist - ATOL:
+                spacing_violations.append({
+                    "circle_i": i, "circle_j": j,
+                    "actual_dist": round(dist, 4),
+                    "required_dist": round(min_dist, 4),
+                    "shortfall": round(min_dist - dist, 4),
+                })
+
+    if invalid_diameters:
+        violations.append(f"Invalid diameters at indices {[v['index'] for v in invalid_diameters]}: use only {VALID_DIAMETERS}")
+    if boundary_violations:
+        violations.append(f"Boundary violations at {len(boundary_violations)} circles: circles must fit entirely within [0, {DOMAIN_SIZE}]x[0, {DOMAIN_SIZE}]")
+    if spacing_violations:
+        violations.append(f"Spacing violations between {len(spacing_violations)} pairs: min_dist = (d1+d2)/2 + {MIN_SPACING}")
+    if duplicate_coords:
+        violations.append(f"Duplicate coordinates at {len(duplicate_coords)} positions")
+
+    return {
+        "total_circles": len(circles),
+        "num_violations": len(invalid_diameters) + len(boundary_violations) + len(spacing_violations) + len(duplicate_coords),
+        "violations_summary": violations,
+        "invalid_diameters": invalid_diameters[:5],
+        "boundary_violations": boundary_violations[:5],
+        "spacing_violations": spacing_violations[:5],
+        "duplicate_coords": duplicate_coords[:5],
+        "hint": (
+            f"VALID_DIAMETERS={VALID_DIAMETERS}, DOMAIN_SIZE={DOMAIN_SIZE}, MIN_SPACING={MIN_SPACING}. "
+            "Each circle (x,y,d) must satisfy: d/2 <= x,y <= DOMAIN_SIZE-d/2, "
+            "and dist(ci,cj) >= (di+dj)/2 + MIN_SPACING for all pairs."
+        ),
+    }
+
+
+def repair_solution(circles: List[Tuple[float, float, float]]) -> List[Tuple[float, float, float]]:
+    """
+    尝试修复轻微约束违反：
+    1) 过滤非法孔径；
+    2) 将越界孔夹回边界；
+    3) 逐步移除间距违反最严重的孔，直到可行。
+    返回修复后的可行子集（可能比原始解少孔）。
+    """
+    from math import sqrt as _sqrt
+
+    # 1. 过滤非法孔径
+    valid_circles = [(x, y, d) for x, y, d in circles if d in VALID_DIAMETERS]
+
+    # 2. 将越界孔夹回边界
+    clamped = []
+    for x, y, d in valid_circles:
+        r = d / 2.0
+        cx = max(r, min(DOMAIN_SIZE - r, x))
+        cy = max(r, min(DOMAIN_SIZE - r, y))
+        clamped.append((round(cx, 2), round(cy, 2), d))
+
+    # 3. 去重坐标
+    seen_keys = {}
+    deduped = []
+    for x, y, d in clamped:
+        key = (round(x, 2), round(y, 2))
+        if key not in seen_keys:
+            seen_keys[key] = True
+            deduped.append((x, y, d))
+
+    # 4. 贪心移除间距违反最严重的孔
+    result = list(deduped)
+    max_iters = len(result)
+    for _ in range(max_iters):
+        # 计算每个孔的总违规量
+        violation_score = [0.0] * len(result)
+        for i in range(len(result)):
+            xi, yi, di = result[i]
+            for j in range(i + 1, len(result)):
+                xj, yj, dj = result[j]
+                dist = _sqrt((xi - xj) ** 2 + (yi - yj) ** 2)
+                min_dist = (di + dj) / 2.0 + MIN_SPACING
+                if dist < min_dist - ATOL:
+                    shortfall = min_dist - dist
+                    violation_score[i] += shortfall
+                    violation_score[j] += shortfall
+
+        if max(violation_score) < ATOL:
+            break  # 已无违规
+
+        # 移除违规最严重的孔
+        worst = int(np.argmax(violation_score))
+        result.pop(worst)
+        violation_score.pop(worst)
+
+    return result
+
+
 def compute_metrics(circles: List[Tuple[float, float, float]]) -> Dict[str, Any]:
     """
     计算布局的详细指标字典：
@@ -332,13 +468,14 @@ def save_run_summary(results_dir: str, payload: Dict[str, Any]) -> None:
 def aggregate_fn(results: List[Any], results_dir: str, save_artifacts: str = "none") -> Dict[str, Any]:
     """
     多次运行汇总入口（Shinka 会调用此函数）：
-    1) 逐条校验可行性并计算单次指标；
+    1) 逐条校验可行性，失败时尝试自动修复；
     2) 统计 Pareto 前沿与超体积；
     3) 输出最终 combined_score。
     """
     run_records = []
     failure_counter = Counter()
     feasible_metrics = []
+    all_diagnostics = []
 
     for idx, raw_result in enumerate(results):
         if isinstance(raw_result, dict) and "circles" in raw_result:
@@ -348,13 +485,29 @@ def aggregate_fn(results: List[Any], results_dir: str, save_artifacts: str = "no
             circles = raw_result
             alpha = 0.5
 
-        valid, msg = validate_solution(circles)
-        if not valid:
+        is_valid, msg = validate_solution(circles)
+
+        # 若原始解不可行，尝试自动修复
+        repaired = False
+        if not is_valid:
+            diag = diagnose_violations(circles)
+            all_diagnostics.append({"run_id": idx, "original_error": msg, **diag})
+            repaired_circles = repair_solution(circles)
+            if repaired_circles:
+                is_valid2, msg2 = validate_solution(repaired_circles)
+                if is_valid2:
+                    circles = repaired_circles
+                    is_valid = True
+                    repaired = True
+                    msg = ""
+
+        if not is_valid:
             failure_counter[msg] += 1
             run_records.append(
                 {
                     "run_id": idx,
                     "valid": False,
+                    "repaired": False,
                     "error": msg,
                     "alpha": round(alpha, 3),
                 }
@@ -372,6 +525,7 @@ def aggregate_fn(results: List[Any], results_dir: str, save_artifacts: str = "no
         record = {
             "run_id": idx,
             "valid": True,
+            "repaired": repaired,
             "alpha": round(components.get("alpha", alpha), 3),
             "score": round(score, 6),
             "score_pr": round(components.get("score_pr", 0.0), 6),
@@ -397,9 +551,20 @@ def aggregate_fn(results: List[Any], results_dir: str, save_artifacts: str = "no
     save_run_summary(results_dir, summary_payload)
 
     if not feasible_metrics:
+        # 提供详细的约束违反诊断，帮助 LLM 学习修复
+        diag_summary = all_diagnostics[:2] if all_diagnostics else []
+        hint = (
+            f"All {len(results)} runs failed. "
+            f"Failure types: {dict(failure_counter)}. "
+            f"Constraint rules: VALID_DIAMETERS={VALID_DIAMETERS}, "
+            f"DOMAIN_SIZE={DOMAIN_SIZE}, MIN_SPACING={MIN_SPACING}. "
+            f"Each circle (x,y,d): d/2 <= x,y <= {DOMAIN_SIZE}-d/2, "
+            f"dist(ci,cj) >= (di+dj)/2 + {MIN_SPACING} for all pairs."
+        )
         return {
             "combined_score": 0.0,
-            "error": f"No feasible runs. Failure stats: {dict(failure_counter)}",
+            "error": hint,
+            "diagnostics": diag_summary,
             "private": summary_payload,
         }
 
@@ -419,8 +584,11 @@ def aggregate_fn(results: List[Any], results_dir: str, save_artifacts: str = "no
     front = non_dominated_set(feasible_metrics)
     hv = pareto_hypervolume(feasible_metrics)
     feasible_rate = summary_payload["feasible_rate"]
-    # 最终总分：前沿质量（hv）乘以可行率（feasible_rate）
-    robust_score = max(0.0, min(1.0, hv * feasible_rate))
+    # 统计修复后才通过的运行数，对修复解施加轻微惩罚（保留 90% 分数）
+    num_repaired = sum(1 for r in feasible_metrics if r.get("repaired", False))
+    repair_penalty = 0.9 ** num_repaired if num_repaired > 0 else 1.0
+    # 最终总分：前沿质量 × 可行率 × 修复惩罚
+    robust_score = max(0.0, min(1.0, hv * feasible_rate * repair_penalty))
 
     archive_size = 0
     if save_artifacts == "all":

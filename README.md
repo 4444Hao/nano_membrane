@@ -1,6 +1,6 @@
 # ShinkaEvolve Nano-Membrane Fork
 
-![Python](https://img.shields.io/badge/python-3.8%2B-blue)
+![Python](https://img.shields.io/badge/python-3.11-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 
@@ -48,19 +48,37 @@ uv pip install -e .
 无需 API Key，用于验证初始设计方案的适应度。
 
 ```bash
+# 先切换到工作目录
+cd examples/nano_membrane
+
 python evaluate.py --program_path initial.py --results_dir results/manual_eval
 ```
 
 ### 3. 启动 AI 进化 (Evolution)
 让 LLM 开始寻找最优的孔隙排布方案。
 
+**第一步：配置 API Key**
+
+```powershell
+# Windows PowerShell / VSCode 集成终端
+$env:OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxx"
+```
+
 ```bash
+# Linux / macOS
+export OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxx"
+```
+
+**第二步：切换目录并启动进化**
+
+```bash
+cd examples/nano_membrane
+
 python run_evo_async.py --config_path shinka_small.yaml
 ```
 
-> **注意**：运行进化任务需要配置 LLM API Key。
-> 默认配置使用 OpenAI 模型（gpt-5-mini），请确保环境变量中包含 `OPENAI_API_KEY`。
-> 若使用其他模型，请修改 `shinka_small.yaml` 中的配置（需符合上游支持的模型型号）。
+> **注意**：默认配置使用 OpenAI 模型（gpt-5-mini）。
+> 若使用其他模型，请修改 `shinka_small.yaml` 中的 `llm_models` 字段（需符合上游支持的模型型号）。
 
 ---
 

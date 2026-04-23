@@ -1,7 +1,7 @@
-# EVOLVE-BLOCK-START
 import random
+import math
 import numpy as np
-from math import sqrt, exp, pi
+from math import sqrt, exp, pi, sin, cos, log, ceil, floor, atan2, hypot, inf
 
 """
 纳米膜孔布局求解器（启发式优化版）。
@@ -12,11 +12,13 @@ from math import sqrt, exp, pi
 3) 最后离散到 0.01 网格，并做一次可行性兜底修复。
 """
 
-# --------------------------- 几何与物理常量 ---------------------------
+# --------------------------- 几何与物理常量（不可修改）---------------------------
 DOMAIN_SIZE = 10.0
 MIN_SPACING = 0.5
 ATOL = 1e-4
 C = 1.64
+
+# EVOLVE-BLOCK-START
 
 # 不同孔径对应的 (渗透贡献 P_type, 截留贡献 R_type)
 HOLE_TYPES = {
