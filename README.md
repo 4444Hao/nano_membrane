@@ -74,15 +74,26 @@ ShinkaEvolve 非常适合求解器可塑性强、约束复杂、多目标评价�
 ```bash
 # 1. 克隆仓库
 git clone https://github.com/4444Hao/nano_membrane.git
+cd nano_membrane
 
-# 2. 推荐使用 uv (也可用 pip)
+# 2. 推荐使用 uv（也可用 pip，见下方）
 uv venv --python 3.11
-# Windows: .venv\Scripts\activate
-# Linux/Mac: source .venv/bin/activate
 
-# 3. 安装依赖
+# Windows（PowerShell / VSCode 集成终端）:
+.venv\Scripts\activate
+# Linux / macOS:
+# source .venv/bin/activate
+
+# 3. 安装依赖（必须在仓库根目录执行，即含 pyproject.toml 的那一层）
 uv pip install -e .
 ```
+
+> **如果没有安装 uv，用 pip 替代：**
+> ```powershell
+> python -m venv .venv
+> .venv\Scripts\activate
+> pip install -e .
+> ```
 
 ### 2. 运行单点评估 (Debug)
 无需 API Key，用于验证初始设计方案的适应度。
@@ -176,6 +187,118 @@ python -m shinka.webui.visualization --port 8888 --open
 
 ---
 
+## 📊 评分与进化策略详解
+
+本节详细说明本项目中**膜性能评估的数学模型**、**进化档案管理**以及**续跑配置**，帮助理解 `combined_score` 的计算逻辑和参数调优依据。
+
+### 1. 计算层面：从孔属性到综合得分
+
+#### 🧱 第一层：每个孔的物理属性
+根据孔径 `d` 查表 `HOLE_TYPES` 得到 `(P_type, R_type)`：
+
+| 孔径 d (nm) | P_type (渗透性因子) | R_type (截留率, %) | 说明 |
+|:-----------:|:-------------------:|:------------------:|:-----|
+| 1.0         | 143                 | 100.0              | 最小孔：水流慢，盐完全挡住 |
+| 1.5         | 778                 | 99.6               | |
+| 2.0         | 815                 | 99.8               | |
+| 2.5         | 1048                | 99.5               | |
+| 3.0         | 1435                | 96.8               | |
+| 3.5         | 1437                | 94.3               | 最大孔：水流快，盐有点漏 |
+
+#### 🔢 第二层：整张膜的原始值
+- **原始渗透性**：  
+  \[
+  P_{\text{raw}} = \frac{1.64 \times \sum (\text{面积}_i \times P_{\text{type},i})}{100}
+  \]
+  面积加权后除以膜面积归一。
+- **原始截留率**：  
+  \[
+  R_{\text{raw}} = \frac{\sum (\text{面积}_i \times R_{\text{type},i})}{\sum \text{面积}_i}
+  \]
+  纯面积加权平均。
+
+#### 📏 第三层：归一化到 [0,1]
+- **Pn（归一化渗透性）**：  
+  - \(P_{\text{raw}} \leq 600\) 时，线性增长到 0.8  
+  - \(600 < P_{\text{raw}} \leq 1100\) 时，缓慢增长到 1.0  
+  - 拐点设计：超过 600 后收益递减，避免只堆大孔。
+- **Rn（归一化截留率）**：  
+  \[
+  R_n = \frac{R_{\text{raw}} - 96}{100 - 96}
+  \]
+  工程下限为 96%，低于 96 直接得 0。
+
+#### ⚖️ 第四层：单次运行得分
+\[
+\text{score} = \alpha \times P_n + (1 - \alpha) \times R_n
+\]
+\(\alpha\) 按 5 个值轮流：`[0.2, 0.35, 0.5, 0.65, 0.8]`
+
+| α 值 | 侧重方向     |
+|------|--------------|
+| 0.2  | 偏重 R（截留率优先） |
+| 0.35 |              |
+| 0.5  | 均衡         |
+| 0.65 |              |
+| 0.8  | 偏重 P（渗透性优先） |
+
+#### 🏆 第五层：5 次运行聚合 → `combined_score`
+1. 5 次运行得到 5 个 `(Pn, Rn)` 点。  
+2. 找出**非支配前沿**（Pareto前沿）：没有任何一个点在两个维度上同时比它更好。  
+3. 计算**超体积（HV）**：设定参考点（最差情况），HV 即 Pareto 前沿与参考点之间围成的面积。  
+   - HV 越大，说明 P 和 R 的折中方案越好（前沿越靠右上角）。  
+   - **为什么用 HV 而不是平均分？**  
+
+   | 方案 | Pn   | Rn   | 平均分 | 问题 |
+   |------|------|------|--------|------|
+   | A    | 0.95 | 0.60 | 0.775  | Rn 对应 R=98.4%，低于工程下限，偏科严重 |
+   | B    | 0.80 | 0.85 | 0.825  | 均衡且都在可行域内 |
+
+   平均分看 B 更好，但 A 实际上不可行。HV 会惩罚“一条腿长一条腿短”的情况——极端偏科的前沿面积反而小。
+
+4. 最终综合分：  
+   \[
+   \text{combined\_score} = HV \times \text{feasible\_rate}
+   \]  
+   - `feasible_rate = 可行运行次数 / 总运行次数`  
+   - 不稳定的程序在实际部署中没有价值，因此乘上可行率。
+
+### 2. 档案（Archive）配置：精英与多样性兼顾
+
+不同总代数需要调整 `archive_size` 和 `elite_selection_ratio`：
+
+- **`archive_size`**：档案保留的优秀程序总数（如 40 个名额）  
+  - `elite_selection_ratio = 0.5` → 20 个名额：按 `combined_score` 从高到低保留（精英）  
+  - 剩余 50%（20 个名额）：按代码嵌入向量的**多样性**保留（与已有档案里程序“最不像”的程序优先入选）
+
+→ 档案里同时有高分程序和代码风格独特的程序，**不是纯精英制**。
+
+### 3. 续跑（Resume Evolution）配置示例
+
+框架支持断点续跑，`programs.sqlite` 和 `bandit_state.pkl` 会保留已有进化历史，直接修改 YAML 重新运行即可继承。
+
+**场景**：从 30 代续跑到 60 代，需要修改以下 3 个值：
+
+```yaml
+db_config:
+  archive_size: 40            # 25 → 40（60 代程序变多，扩大档案容量）
+  elite_selection_ratio: 0.4  # 0.5 → 0.4（积累更多，适当降低精英比例）
+
+evo_config:
+  num_generations: 60         # 30 → 60（告诉框架目标总代数）
+  max_api_costs: 4.0          # 2.0 → 4.0（预算翻倍）
+```
+
+**不需要修改的**：
+- `results_dir`：保持相同路径，框架自动识别已有的 `programs.sqlite` 续跑  
+- `init_program_path`：续跑时框架不会重新初始化，此参数被忽略  
+- 其他所有参数保持不变
+
+> **注意**：`num_generations: 60` 是**总代数**，不是“再跑 30 代”。  
+> 框架从数据库读取当前已完成的代数，如果已经跑了 30 代，设为 60 就会再跑 30 代；设为 30 则框架认为目标已达成，直接退出。
+
+---
+
 ## 📊 结果说明
 
 *   **输出目录**：`examples/nano_membrane/results/`
@@ -237,7 +360,7 @@ examples/nano_membrane/results/
 ### 4. 代目录标准结构（`gen_<k>/`）
 
 ```text
-gen_/
+gen_<k>/
 |-- main.py                  # 本代最终被评估的候选代码
 |-- original.py              # 打补丁前的父版本代码
 |-- edit.diff                # 最终应用后的差异补丁

@@ -220,11 +220,8 @@ def objective(circles):
     """
     v = violation(circles)
     P, R, _ = solution_metrics(circles)
-    score_pr = engineering_score(P, R)
-    score = score_pr
-
-    # 先满足可行性，再优化分数
-    # 目标值越小越好，因此惩罚项放在前面。
+    alphas = [0.2, 0.35, 0.5, 0.65, 0.8]
+    score = sum(engineering_score(P, R, a) for a in alphas) / len(alphas)
     return v - score
 
 
