@@ -52,7 +52,7 @@ R_FLOOR = 96.0
 
 
 def set_objective_alpha(alpha):
-    """设置目标权重 alpha，并限制在 [0, 1]。"""
+    """设置目标权重 alpha,并限制在 [0, 1]。"""
     global OBJECTIVE_ALPHA
     try:
         a = float(alpha)
