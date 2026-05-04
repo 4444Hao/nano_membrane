@@ -5,6 +5,15 @@ __pycache__/
 .DS_Store
 results/
 
+# 只追踪预训练最优算法，其余 results/ 内容保持忽略
+!nano_membrane/results/
+nano_membrane/results/*
+!nano_membrane/results/research_run/
+nano_membrane/results/research_run/*
+!nano_membrane/results/research_run/best/
+nano_membrane/results/research_run/best/*
+!nano_membrane/results/research_run/best/main.py
+
 # C extensions
 *.so
 

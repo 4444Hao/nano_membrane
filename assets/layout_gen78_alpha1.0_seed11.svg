@@ -1,0 +1,57 @@
+<svg width="600" height="600" xmlns="http://www.w3.org/2000/svg">
+<rect x="0" y="0" width="600" height="600" fill="white" stroke="black" stroke-width="2"/>
+<g stroke="lightgray" stroke-width="0.5">
+<line x1="60.0" y1="0" x2="60.0" y2="600"/>
+<line x1="0" y1="60.0" x2="600" y2="60.0"/>
+<line x1="120.0" y1="0" x2="120.0" y2="600"/>
+<line x1="0" y1="120.0" x2="600" y2="120.0"/>
+<line x1="180.0" y1="0" x2="180.0" y2="600"/>
+<line x1="0" y1="180.0" x2="600" y2="180.0"/>
+<line x1="240.0" y1="0" x2="240.0" y2="600"/>
+<line x1="0" y1="240.0" x2="600" y2="240.0"/>
+<line x1="300.0" y1="0" x2="300.0" y2="600"/>
+<line x1="0" y1="300.0" x2="600" y2="300.0"/>
+<line x1="360.0" y1="0" x2="360.0" y2="600"/>
+<line x1="0" y1="360.0" x2="600" y2="360.0"/>
+<line x1="420.0" y1="0" x2="420.0" y2="600"/>
+<line x1="0" y1="420.0" x2="600" y2="420.0"/>
+<line x1="480.0" y1="0" x2="480.0" y2="600"/>
+<line x1="0" y1="480.0" x2="600" y2="480.0"/>
+<line x1="540.0" y1="0" x2="540.0" y2="600"/>
+<line x1="0" y1="540.0" x2="600" y2="540.0"/>
+</g>
+<circle cx="225.00" cy="286.80" r="105.00" fill="#E91E63" stroke="black" stroke-width="1.5" fill-opacity="0.7"/>
+<text x="225.00" y="286.80" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="white" font-weight="bold">3.5</text>
+<circle cx="105.00" cy="495.00" r="105.00" fill="#E91E63" stroke="black" stroke-width="1.5" fill-opacity="0.7"/>
+<text x="105.00" y="495.00" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="white" font-weight="bold">3.5</text>
+<circle cx="346.80" cy="495.00" r="105.00" fill="#E91E63" stroke="black" stroke-width="1.5" fill-opacity="0.7"/>
+<text x="346.80" y="495.00" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="white" font-weight="bold">3.5</text>
+<circle cx="486.00" cy="285.60" r="105.00" fill="#E91E63" stroke="black" stroke-width="1.5" fill-opacity="0.7"/>
+<text x="486.00" y="285.60" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="white" font-weight="bold">3.5</text>
+<circle cx="357.60" cy="93.00" r="90.00" fill="#F44336" stroke="black" stroke-width="1.5" fill-opacity="0.7"/>
+<text x="357.60" y="93.00" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="white" font-weight="bold">3.0</text>
+<circle cx="94.20" cy="93.60" r="90.00" fill="#F44336" stroke="black" stroke-width="1.5" fill-opacity="0.7"/>
+<text x="94.20" y="93.60" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="white" font-weight="bold">3.0</text>
+<circle cx="525.00" cy="554.40" r="45.00" fill="#2196F3" stroke="black" stroke-width="1.5" fill-opacity="0.7"/>
+<text x="525.00" y="554.40" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="white" font-weight="bold">1.5</text>
+<circle cx="535.80" cy="69.00" r="45.00" fill="#2196F3" stroke="black" stroke-width="1.5" fill-opacity="0.7"/>
+<text x="535.80" y="69.00" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="white" font-weight="bold">1.5</text>
+<circle cx="30.00" cy="256.80" r="30.00" fill="#4CAF50" stroke="black" stroke-width="1.5" fill-opacity="0.7"/>
+<text x="30.00" y="256.80" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="white" font-weight="bold">1.0</text>
+<circle cx="541.80" cy="441.00" r="30.00" fill="#4CAF50" stroke="black" stroke-width="1.5" fill-opacity="0.7"/>
+<text x="541.80" y="441.00" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="white" font-weight="bold">1.0</text>
+<rect x="10" y="480" width="80" height="110" fill="white" stroke="black" fill-opacity="0.9"/>
+<text x="50" y="495" text-anchor="middle" font-size="12" font-weight="bold">孔径</text>
+<circle cx="25" cy="510" r="5" fill="#4CAF50"/>
+<text x="35" y="514" font-size="11">1.0</text>
+<circle cx="25" cy="525" r="5" fill="#2196F3"/>
+<text x="35" y="529" font-size="11">1.5</text>
+<circle cx="25" cy="540" r="5" fill="#FF9800"/>
+<text x="35" y="544" font-size="11">2.0</text>
+<circle cx="25" cy="555" r="5" fill="#9C27B0"/>
+<text x="35" y="559" font-size="11">2.5</text>
+<circle cx="25" cy="570" r="5" fill="#F44336"/>
+<text x="35" y="574" font-size="11">3.0</text>
+<circle cx="25" cy="585" r="5" fill="#E91E63"/>
+<text x="35" y="589" font-size="11">3.5</text>
+</svg>

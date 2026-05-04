@@ -13,7 +13,7 @@ import argparse
 import importlib.util
 import json
 
-# 导入评估函数
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from evaluate import (
     validate_solution,
     compute_metrics,
@@ -24,9 +24,9 @@ from evaluate import (
 
 def load_main(gen):
     if gen == "best":
-        path = os.path.join("results", "membrane_run", "best", "main.py")
+        path = os.path.join("results", "research_run", "best", "main.py")
     else:
-        path = os.path.join("results", "membrane_run", f"gen_{gen}", "main.py")
+        path = os.path.join("results", "research_run", f"gen_{gen}", "main.py")
 
     if not os.path.exists(path):
         print(f"错误：找不到文件 {path}")

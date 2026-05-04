@@ -1,0 +1,23 @@
+# 自动检测文本文件并规范化行尾
+* text=auto
+
+# 明确指定 Python 文件使用 UTF-8 编码
+*.py text eol=lf encoding=utf-8
+*.pyw text eol=lf encoding=utf-8
+
+# 配置文件
+*.yaml text eol=lf encoding=utf-8
+*.yml text eol=lf encoding=utf-8
+*.json text eol=lf encoding=utf-8
+*.toml text eol=lf encoding=utf-8
+
+# 文档文件
+*.md text eol=lf encoding=utf-8
+*.txt text eol=lf encoding=utf-8
+
+# 二进制文件
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.svg binary
+*.pkl binary

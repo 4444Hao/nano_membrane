@@ -1,0 +1,46 @@
+max_evaluation_jobs: 3
+max_proposal_jobs: 2
+max_db_workers: 4
+
+db_config:
+  num_islands: 2        # 多目标问题需要更多Pareto niche覆盖
+  archive_size: 30     # 长跑保留更多多样性
+  elite_selection_ratio: 0.5  # 略增探索比例
+  num_archive_inspirations: 6
+  num_top_k_inspirations: 3
+
+evo_config:
+  patch_types: [full, diff]
+  patch_type_probs: [0.80, 0.20]
+
+  num_generations: 80
+  max_api_costs: 25.0
+
+  max_patch_resamples: 8  # 提高容错，减少几何约束失败率
+  max_patch_attempts: 8
+  max_novelty_attempts: 3
+
+  job_type: local
+  language: python
+
+  llm_models:
+    - "gpt-5"        # 主力：强推理，算法结构创新
+    - "gpt-5-mini"   # 已验证有效，推理+低成本
+    - "gpt-4.1-mini" # 辅助：快速diff局部精修
+
+  llm_kwargs:
+    temperatures: [0.65]              # 非推理模型使用（gpt-4.1-mini）
+    reasoning_efforts: [medium, high] # 推理模型随机采样（gpt-5 / gpt-5-mini）
+    max_tokens: [32768, 16384, 8192]
+
+  llm_dynamic_selection: ucb1
+  llm_dynamic_selection_kwargs:
+    exploration_coef: 0.8   # 长跑后期更多利用UCB已学习的模型排名
+    cost_aware_coef: 0.4
+
+  embedding_model: text-embedding-3-small
+
+  init_program_path: initial.py
+  results_dir: results/research_run
+
+job_time: "00:20:00"
